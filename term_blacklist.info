@@ -1,0 +1,4 @@
+; $Id $
+name = "Term blacklist"
+description = "Define a blacklist for certain taxonomy terms."
+dependencies = taxonomy

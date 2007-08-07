@@ -1,0 +1,19 @@
+<?php
+/* $Id$ */
+
+function term_blacklist_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("CREATE TABLE {term_blacklist} (
+                  btid int(11) unsigned NOT NULL auto_increment,
+                  name varchar(255) NOT NULL,
+                  substitute varchar(255) NOT NULL,
+                  PRIMARY KEY  (btid)
+                ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;"
+      );
+      break;
+    case 'pgsql':
+      break;
+  }
+}

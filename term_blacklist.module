@@ -1,0 +1,245 @@
+<?php
+/* $Id$ */
+
+/**
+ * @file
+ * Provides a term blacklist for freetagging vocabulary.
+ * 
+ * @author
+ * Stefan Auditor <stefan.auditor@erdfisch.de>
+ */
+
+/**
+ * implementation of hook_help().
+ */
+function term_blacklist_help($section) {
+switch ($section) {
+    case 'admin/content/taxonomy/blacklist':
+      return t('<p>This is a global term blacklist. All terms listet here are ignored or replaced by the optional substitute.</p>');
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function term_blacklist_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch($op) {
+    case 'submit':
+      drupal_set_message('<pre>'. print_r($node->taxonomy['tags'], 1) .'</pre>');
+      foreach($node->taxonomy['tags'] as $key => $name) {
+        $substitute = term_blacklist_check_term($name);
+        $node->taxonomy['tags'][$key] =  $substitute ? $substitute : $name;
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function term_blacklist_menu($may_cache) {
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'admin/content/taxonomy/blacklist',
+      'title' => t('Blacklist'),
+      'callback' => 'term_blacklist_overview',
+      'access' => user_access('administer taxonomy'),
+      'type' => MENU_LOCAL_TASK,
+      'weight' => -9,
+    );
+    $items[] = array(
+      'path' => 'admin/content/taxonomy/add/blacklist',
+      'title' => t('Add blacklist'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('term_blacklist_add_form'),
+      'access' => user_access('administer taxonomy'),
+      'type' => MENU_LOCAL_TASK,
+      'weight' => -8,
+    );
+    $items[] = array(
+      'path' => 'blacklist/autocomplete',
+      'title' => t('Blacklist autocomplete'),
+      'callback' => 'term_blacklist_autocomplete',
+      'access' => user_access('administer taxonomy'),
+      'type' => MENU_CALLBACK,
+    );
+    $items[] = array('path' => 'admin/content/taxonomy/blacklist/edit',
+      'title' => t('Edit term'),
+      'callback' => 'term_blacklist_admin_term_edit',
+      'access' => user_access('administer taxonomy'),
+      'type' => MENU_CALLBACK);
+  }
+  
+  return $items;
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function term_blacklist_overview() {
+  $header = array(
+    t('Name'),
+    t('Substitute'),
+    '',
+  );
+  $rows = array();
+  $result = pager_query("SELECT btid, name, substitute FROM {term_blacklist} ORDER BY name, substitute ASC", 25);
+  while($term = db_fetch_object($result)) {
+    $rows[] = array(
+      $term->name,
+      $term->substitute,
+      l(t('edit'), 'admin/content/taxonomy/blacklist/edit/'. $term->btid), 
+    );
+  }
+  
+  $output .= theme('table', $header, $rows);
+  $output .= theme('pager');
+  return $output;
+}
+
+function term_blacklist_add_form() {
+  $form['term'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Term'),
+    '#autocomplete_path' => 'blacklist/autocomplete', 
+    '#size' => 30,
+    '#maxlength' => 64,
+    '#description' => t('Enter the name of the term to blacklist'),
+    '#required' => TRUE,
+  );
+  $form['substitute'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Substitute'),
+    '#size' => 30,
+    '#maxlength' => 64,
+    '#description' => t('You may enter a substitute for the term'),
+  );
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Submit'));
+  $form['#redirect'] = array('admin/content/taxonomy/blacklist');
+  
+  return $form;
+}
+
+function term_blacklist_add_form_validate($form_id, $form_values) {
+  if (db_result(db_query("SELECT btid FROM {term_blacklist} WHERE name='%s'", $form_values['term']))) {
+    form_set_error('name', t('Term already blacklisted.'));
+  }
+}
+
+function term_blacklist_add_form_submit($form_id, $form_values) {
+  term_blacklist_add_term($form_values['term'], $form_values['substitute']);
+  drupal_set_message(t('Created new blacklist item %item.', array('%item' => $form_values['term'])));
+}
+
+function term_blacklist_term_form($btid) {
+  $term = term_blacklist_get_term($btid);
+  
+  $form['term'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Term'),
+    '#size' => 30,
+    '#maxlength' => 64,
+    '#description' => t('Enter the name of the term to blacklist'),
+    '#default_value' => $term->name,
+    '#required' => TRUE,
+  );
+  $form['substitute'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Substitute'),
+    '#size' => 30,
+    '#maxlength' => 64,
+    '#description' => t('You may enter a substitute for the term'),
+    '#default_value' => $term->substitute,
+  );
+  $form['submit'] = array('#type' => 'submit', '#value' => t('Submit'));
+  $form['delete'] = array('#type' => 'submit', '#value' => t('Delete'));
+  
+  return $form;
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function term_blacklist_uninstall() {
+  db_query('DROP TABLE {term_blacklist}');
+}
+
+function term_blacklist_autocomplete($string = '') {
+  // The user enters a comma-separated list of tags. We only autocomplete the last tag.
+  // This regexp allows the following types of user input:
+  // this, "somecmpany, llc", "and ""this"" w,o.rks", foo bar
+  $regexp = '%(?:^|,\ *)("(?>[^"]*)(?>""[^"]* )*"|(?: [^",]*))%x';
+  preg_match_all($regexp, $string, $matches);
+  $array = $matches[1];
+
+  // Fetch last tag
+  $last_string = trim(array_pop($array));
+  if ($last_string != '') {
+    $result = db_query_range(db_rewrite_sql("SELECT t.tid, t.name FROM {term_data} t WHERE LOWER(t.name) LIKE LOWER('%%%s%%')", 'tid'), $last_string, 0, 10);
+
+    $prefix = count($array) ? implode(', ', $array) .', ' : '';
+
+    $matches = array();
+    while ($tag = db_fetch_object($result)) {
+      $n = $tag->name;
+      // Commas and quotes in terms are special cases, so encode 'em.
+      if (strpos($tag->name, ',') !== FALSE || strpos($tag->name, '"') !== FALSE) {
+        $n = '"'. str_replace('"', '""', $tag->name) .'"';
+      }
+      $matches[$prefix . $n] = check_plain($tag->name);
+    }
+    print drupal_to_js($matches);
+    exit();
+  }
+}
+
+function term_blacklist_term_confirm_delete($btid) {
+  $term = term_blacklist_get_term($btid);
+  
+  $form['type'] = array('#type' => 'value', '#value' => 'term');
+  $form['name'] = array('#type' => 'value', '#value' => $term->name);
+  $form['btid'] = array('#type' => 'value', '#value' => $btid);
+  return confirm_form($form,
+                  t('Are you sure you want to delete the term %title?',
+                  array('%title' => $term->name)),
+                  'admin/content/taxonomy/blacklist',
+                  t('This action cannot be undone.'),
+                  t('Delete'),
+                  t('Cancel'));
+}
+
+function term_blacklist_term_confirm_delete_submit($form_id, $form_values) {
+  term_blacklist_del_term($form_values['btid']);
+  drupal_set_message(t('Deleted term %name.', array('%name' => $form_values['name'])));
+  watchdog('term blacklist', t('Deleted term %name.', array('%name' => $form_values['name'])), WATCHDOG_NOTICE);
+  return 'admin/content/taxonomy/blacklist';
+}
+
+function term_blacklist_admin_term_edit($btid) {
+  if ($_POST['op'] == t('Delete') || $_POST['confirm']) {
+    return drupal_get_form('term_blacklist_term_confirm_delete', $btid);
+  }
+  if ($term = (array)term_blacklist_get_term($btid)) {
+    return drupal_get_form('term_blacklist_term_form', $btid);
+  }
+  return drupal_not_found();
+}
+
+function term_blacklist_get_term($btid) {
+  return db_fetch_object(db_query("SELECT btid, name, substitute FROM {term_blacklist} WHERE btid=%d", $btid));
+}
+
+function term_blacklist_del_term($btid) {
+  return db_query("DELETE FROM {term_blacklist} WHERE btid=%d", $btid);
+}
+
+function term_blacklist_check_term($name) {
+  return db_result(db_query("SELECT substitute FROM {term_blacklist} WHERE name='%s'", $name));
+}
+
+function term_blacklist_add_term($name, $substitute) {
+  return db_query("INSERT INTO {term_blacklist} (name, substitute) VALUES ('%s', '%s')",$name, $substitute);
+}
+
+
