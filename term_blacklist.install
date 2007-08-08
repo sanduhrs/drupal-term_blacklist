@@ -17,3 +17,10 @@ function term_blacklist_install() {
       break;
   }
 }
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function term_blacklist_uninstall() {
+  db_query('DROP TABLE {term_blacklist}');
+}

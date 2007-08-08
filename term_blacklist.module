@@ -158,13 +158,6 @@ function term_blacklist_term_form($btid) {
   return $form;
 }
 
-/**
- * Implementation of hook_uninstall().
- */
-function term_blacklist_uninstall() {
-  db_query('DROP TABLE {term_blacklist}');
-}
-
 function term_blacklist_autocomplete($string = '') {
   // The user enters a comma-separated list of tags. We only autocomplete the last tag.
   // This regexp allows the following types of user input:
