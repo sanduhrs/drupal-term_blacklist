@@ -4,7 +4,7 @@
 /**
  * @file
  * Provides a term blacklist for freetagging vocabulary.
- * 
+ *
  * @author
  * Stefan Auditor <stefan.auditor@erdfisch.de>
  */
@@ -26,10 +26,12 @@ switch ($section) {
 function term_blacklist_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
   switch($op) {
     case 'submit':
-      drupal_set_message('<pre>'. print_r($node->taxonomy['tags'], 1) .'</pre>');
-      foreach($node->taxonomy['tags'] as $key => $name) {
-        $substitute = term_blacklist_check_term($name);
-        $node->taxonomy['tags'][$key] =  $substitute ? $substitute : $name;
+//       drupal_set_message('<pre>'. print_r($node->taxonomy['tags'], 1) .'</pre>');
+      if (is_array($node->taxonomy['tags'])) {
+        foreach($node->taxonomy['tags'] as $key => $name) {
+          $substitute = term_blacklist_check_term($name);
+          $node->taxonomy['tags'][$key] =  $substitute ? $substitute : $name;
+        }
       }
       break;
   }
@@ -70,7 +72,7 @@ function term_blacklist_menu($may_cache) {
       'access' => user_access('administer taxonomy'),
       'type' => MENU_CALLBACK);
   }
-  
+
   return $items;
 }
 
@@ -89,10 +91,10 @@ function term_blacklist_overview() {
     $rows[] = array(
       $term->name,
       $term->substitute,
-      l(t('edit'), 'admin/content/taxonomy/blacklist/edit/'. $term->btid), 
+      l(t('edit'), 'admin/content/taxonomy/blacklist/edit/'. $term->btid),
     );
   }
-  
+
   $output .= theme('table', $header, $rows);
   $output .= theme('pager');
   return $output;
@@ -102,7 +104,7 @@ function term_blacklist_add_form() {
   $form['term'] = array(
     '#type' => 'textfield',
     '#title' => t('Term'),
-    '#autocomplete_path' => 'blacklist/autocomplete', 
+    '#autocomplete_path' => 'blacklist/autocomplete',
     '#size' => 30,
     '#maxlength' => 64,
     '#description' => t('Enter the name of the term to blacklist'),
@@ -117,7 +119,7 @@ function term_blacklist_add_form() {
   );
   $form['submit'] = array('#type' => 'submit', '#value' => t('Submit'));
   $form['#redirect'] = array('admin/content/taxonomy/blacklist');
-  
+
   return $form;
 }
 
@@ -134,7 +136,7 @@ function term_blacklist_add_form_submit($form_id, $form_values) {
 
 function term_blacklist_term_form($btid) {
   $term = term_blacklist_get_term($btid);
-  
+
   $form['term'] = array(
     '#type' => 'textfield',
     '#title' => t('Term'),
@@ -154,7 +156,7 @@ function term_blacklist_term_form($btid) {
   );
   $form['submit'] = array('#type' => 'submit', '#value' => t('Submit'));
   $form['delete'] = array('#type' => 'submit', '#value' => t('Delete'));
-  
+
   return $form;
 }
 
@@ -189,7 +191,7 @@ function term_blacklist_autocomplete($string = '') {
 
 function term_blacklist_term_confirm_delete($btid) {
   $term = term_blacklist_get_term($btid);
-  
+
   $form['type'] = array('#type' => 'value', '#value' => 'term');
   $form['name'] = array('#type' => 'value', '#value' => $term->name);
   $form['btid'] = array('#type' => 'value', '#value' => $btid);
