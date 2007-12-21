@@ -24,11 +24,11 @@ switch ($section) {
  * Implementation of hook_nodeapi().
  */
 function term_blacklist_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
-  switch($op) {
+  switch ($op) {
     case 'submit':
 //       drupal_set_message('<pre>'. print_r($node->taxonomy['tags'], 1) .'</pre>');
       if (is_array($node->taxonomy['tags'])) {
-        foreach($node->taxonomy['tags'] as $key => $name) {
+        foreach ($node->taxonomy['tags'] as $key => $name) {
           $substitute = term_blacklist_check_term($name);
           $node->taxonomy['tags'][$key] =  $substitute ? $substitute : $name;
         }
@@ -87,7 +87,7 @@ function term_blacklist_overview() {
   );
   $rows = array();
   $result = pager_query("SELECT btid, name, substitute FROM {term_blacklist} ORDER BY name, substitute ASC", 25);
-  while($term = db_fetch_object($result)) {
+  while ($term = db_fetch_object($result)) {
     $rows[] = array(
       $term->name,
       $term->substitute,
@@ -234,7 +234,7 @@ function term_blacklist_check_term($name) {
 }
 
 function term_blacklist_add_term($name, $substitute) {
-  return db_query("INSERT INTO {term_blacklist} (name, substitute) VALUES ('%s', '%s')",$name, $substitute);
+  return db_query("INSERT INTO {term_blacklist} (name, substitute) VALUES ('%s', '%s')", $name, $substitute);
 }
 
 
