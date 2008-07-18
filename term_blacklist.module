@@ -10,12 +10,12 @@
  */
 
 /**
- * implementation of hook_help().
+ * Implementation of hook_help().
  */
 function term_blacklist_help($section) {
 switch ($section) {
     case 'admin/content/taxonomy/blacklist':
-      return t('<p>This is a global term blacklist. All terms listet here are ignored or replaced by the optional substitute.</p>');
+      return '<p>'. t('This is a global term blacklist. All terms in this list are ignored or replaced by the optional substitute.') .'</p>';
       break;
   }
 }
