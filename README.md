@@ -4,7 +4,7 @@ http://drupal.org/project/term_blacklist
 
 
 ## Description
-Write memos on users, nodes and comments.
+Provides a term blacklist for freetagging vocabulary.
 
 ## Requirements
 Drupal 5.x
